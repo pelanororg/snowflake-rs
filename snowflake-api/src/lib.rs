@@ -88,8 +88,8 @@ pub enum SnowflakeApiError {
     #[error("Following feature is not implemented yet: {0}")]
     Unimplemented(String),
 
-    #[error("Unexpected API response")]
-    UnexpectedResponse,
+    #[error("Unexpected API response: {0}")]
+    UnexpectedResponse(String),
 
     #[error(transparent)]
     GlobPatternError(#[from] glob::PatternError),
@@ -406,12 +406,15 @@ impl SnowflakeApi {
         log::debug!("Got PUT response: {:?}", resp);
 
         match resp {
-            ExecResponse::Query(_) => Err(SnowflakeApiError::UnexpectedResponse),
+            ExecResponse::Query(q) => Err(SnowflakeApiError::UnexpectedResponse(format!("{q:?}"))),
             ExecResponse::PutGet(pg) => put::put(pg).await,
             ExecResponse::Error(e) => Err(SnowflakeApiError::ApiError(
                 e.data.error_code,
                 e.message.unwrap_or_default(),
             )),
+            ExecResponse::Unknown(e) => {
+                Err(SnowflakeApiError::UnexpectedResponse(format!("{e:?}")))
+            }
         }
     }
 
@@ -438,11 +441,14 @@ impl SnowflakeApi {
         let resp = match resp {
             // processable response
             ExecResponse::Query(qr) => Ok(qr),
-            ExecResponse::PutGet(_) => Err(SnowflakeApiError::UnexpectedResponse),
+            ExecResponse::PutGet(e) => Err(SnowflakeApiError::UnexpectedResponse(format!("{e:?}"))),
             ExecResponse::Error(e) => Err(SnowflakeApiError::ApiError(
                 e.data.error_code,
                 e.message.unwrap_or_default(),
             )),
+            ExecResponse::Unknown(e) => {
+                Err(SnowflakeApiError::UnexpectedResponse(format!("{e:?}")))
+            }
         }?;
 
         // if response was empty, base64 data is empty string

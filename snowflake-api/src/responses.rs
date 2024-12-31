@@ -9,6 +9,7 @@ pub enum ExecResponse {
     Query(QueryExecResponse),
     PutGet(PutGetExecResponse),
     Error(ExecErrorResponse),
+    Unknown(serde_json::Value),
 }
 
 // todo: add close session response, which should be just empty?
